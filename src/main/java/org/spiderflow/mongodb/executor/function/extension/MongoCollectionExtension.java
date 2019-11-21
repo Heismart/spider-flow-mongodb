@@ -1,10 +1,9 @@
 package org.spiderflow.mongodb.executor.function.extension;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
 import org.spiderflow.annotation.Comment;
 import org.spiderflow.annotation.Example;
@@ -13,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import sun.awt.SunHints;
 
 @Component
 public class MongoCollectionExtension implements FunctionExtension{
@@ -50,6 +50,27 @@ public class MongoCollectionExtension implements FunctionExtension{
 	@Example("${mongodb.aliasName.collectionName.updateMany({key : oldValue},{key : newValue})}")
 	public static long updateMany(MongoCollection<Document> collection,Map<String,Object> query,Map<String,Object> update){
 		return collection.updateMany(new Document(query), new Document(update)).getModifiedCount();
+	}
+
+	@Comment("mongodb修改数据")
+	@Example("${mongodb.aliasName.collectionName.updateMany({key : oldValue},{key : newValue},{upsert: true})}")
+	public static long updateMany(MongoCollection<Document> collection,Map<String,Object> query,Map<String,Object> update, Map<String, Object> filters){
+		UpdateOptions updateOptions = new UpdateOptions();
+		if(filters != null && !filters.isEmpty()) {
+			Object upsert = filters.get("upsert");
+			if (upsert != null) {
+				filters.remove("upsert");
+				updateOptions.upsert(Boolean.parseBoolean(upsert.toString()));
+			}
+			Object bypassDocumentValidation = filters.get("bypassDocumentValidation");
+			if(bypassDocumentValidation != null) {
+				filters.remove("bypassDocumentValidation");
+				updateOptions.bypassDocumentValidation(Boolean.parseBoolean(bypassDocumentValidation.toString()));
+			}
+			List<Document> arrayFilters = filters.entrySet().stream().map(entry -> new Document(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+			updateOptions.arrayFilters(arrayFilters);
+		}
+		return collection.updateMany(new Document(query), new Document(update), updateOptions).getModifiedCount();
 	}
 	
 	@Comment("mongodb查找总数")
